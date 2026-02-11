@@ -1,6 +1,6 @@
 <?php
 /*
-Plugin Name: WooCommerce and 1C:Enterprise/1С:Предприятие Data Exchange
+Plugin Name: Data Exchange for WooCommerce and 1C:Enterprise/1С:Предприятие
 Version: 0.9.20
 Description: Provides data exchange between eCommerce plugin WooCommerce and business application "1C:Enterprise 8. Trade Management".
 Author: Danil Semelenov
@@ -39,7 +39,7 @@ function wc1c_plugins_loaded() {
   $languages_dir = WC1C_PLUGIN_BASEDIR . $plugin_data['DomainPath'];
   load_plugin_textdomain('woocommerce-1c', false, $languages_dir);
 
-  $revision = trim(str_replace('Revision', '', '$Revision: 2927431 $'), "$: ");
+  $revision = trim(str_replace('Revision', '', '$Revision: 3365857 $'), "$: ");
   define('WC1C_VERSION', sprintf("%sr%s", $plugin_data['Version'], $revision));
 }
 add_action('plugins_loaded', 'wc1c_plugins_loaded');
