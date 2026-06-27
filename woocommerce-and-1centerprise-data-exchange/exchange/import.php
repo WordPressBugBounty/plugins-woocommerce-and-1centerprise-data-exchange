@@ -238,6 +238,7 @@ function wc1c_import_end_element_handler($is_full, $names, $depth, $name) {
     wc1c_clean_product_terms();
   }
   elseif (!$depth && $name == 'КоммерческаяИнформация') {
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_%'");
     wc1c_check_wpdb_error();
 
@@ -253,6 +254,7 @@ function wc1c_term_id_by_meta($key, $value) {
   $cache_key = "wc1c_term_id_by_meta-$key-$value";
   $term_id = wp_cache_get($cache_key);
   if ($term_id === false) {
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     $term_id = $wpdb->get_var($wpdb->prepare("SELECT tm.term_id FROM $wpdb->termmeta tm JOIN $wpdb->terms t ON tm.term_id = t.term_id WHERE meta_key = %s AND meta_value = %s", $key, $value));
     wc1c_check_wpdb_error();
 
@@ -267,9 +269,12 @@ function wc1c_unique_term_name($name, $taxonomy, $parent = null) {
 
   $name = htmlspecialchars($name);
 
-  $sql = "SELECT * FROM $wpdb->terms NATURAL JOIN $wpdb->term_taxonomy WHERE name = %s AND taxonomy = %s AND parent = %d LIMIT 1";
   if (!$parent) $parent = 0;
-  $term = $wpdb->get_row($wpdb->prepare($sql, $name, $taxonomy, $parent));
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+  $term = $wpdb->get_row( $wpdb->prepare(
+    "SELECT * FROM $wpdb->terms NATURAL JOIN $wpdb->term_taxonomy WHERE name = %s AND taxonomy = %s AND parent = %d LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    $name, $taxonomy, $parent
+  ) );
   wc1c_check_wpdb_error();
   if (!$term) return $name;
 
@@ -278,7 +283,11 @@ function wc1c_unique_term_name($name, $taxonomy, $parent = null) {
     $new_name = "$name ($number)";
     $number++;
 
-    $term = $wpdb->get_row($wpdb->prepare($sql, $new_name, $taxonomy, $parent));
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+    $term = $wpdb->get_row( $wpdb->prepare(
+      "SELECT * FROM $wpdb->terms NATURAL JOIN $wpdb->term_taxonomy WHERE name = %s AND taxonomy = %s AND parent = %d LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+      $new_name, $taxonomy, $parent
+    ) );
     wc1c_check_wpdb_error();
     if (!$term) return $new_name;
   }
@@ -294,9 +303,12 @@ function wc1c_unique_term_slug($slug, $taxonomy, $parent = null) {
     $slug = mb_substr($slug, 0, mb_strlen($slug) - 3);
   }
 
-  $sql = "SELECT * FROM $wpdb->terms NATURAL JOIN $wpdb->term_taxonomy WHERE slug = %s AND taxonomy = %s AND parent = %d LIMIT 1";
   if (!$parent) $parent = 0;
-  $term = $wpdb->get_row($wpdb->prepare($sql, $sanitized_slug, $taxonomy, $parent));
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+  $term = $wpdb->get_row( $wpdb->prepare(
+    "SELECT * FROM $wpdb->terms NATURAL JOIN $wpdb->term_taxonomy WHERE slug = %s AND taxonomy = %s AND parent = %d LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    $sanitized_slug, $taxonomy, $parent
+  ) );
   wc1c_check_wpdb_error();
   if (!$term) return $slug;
 
@@ -306,7 +318,11 @@ function wc1c_unique_term_slug($slug, $taxonomy, $parent = null) {
     $new_sanitized_slug = "$sanitized_slug-$number";
     $number++;
 
-    $term = $wpdb->get_row($wpdb->prepare($sql, $new_sanitized_slug, $taxonomy, $parent));
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+    $term = $wpdb->get_row( $wpdb->prepare(
+      "SELECT * FROM $wpdb->terms NATURAL JOIN $wpdb->term_taxonomy WHERE slug = %s AND taxonomy = %s AND parent = %d LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+      $new_sanitized_slug, $taxonomy, $parent
+    ) );
     wc1c_check_wpdb_error();
     if (!$term) return $new_slug;
   }
@@ -333,9 +349,9 @@ function wc1c_replace_term($is_full, $guid, $parent_guid, $name, $taxonomy, $ord
   $term_id = wc1c_term_id_by_meta('wc1c_guid', "$taxonomy::$guid");
   if (!$term_id) {
     if (WC1C_MATCH_CATEGORIES_BY_TITLE && $taxonomy === 'product_cat') {
-      $term_id = $wpdb->get_var($wpdb->prepare("SELECT term_id FROM {$wpdb->prefix}terms WHERE name = %s LIMIT 1", $name));
+      $term_id = $wpdb->get_var($wpdb->prepare("SELECT term_id FROM {$wpdb->prefix}terms WHERE name = %s LIMIT 1", $name)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     } elseif (WC1C_MATCH_PROPERTY_OPTIONS_BY_TITLE && substr($taxonomy, 0, 3) === 'pa_') {
-      $term_id = $wpdb->get_var($wpdb->prepare("SELECT t.term_id FROM $wpdb->terms t LEFT JOIN $wpdb->term_taxonomy tt ON t.term_id = tt.term_id WHERE t.name = %s AND tt.taxonomy = %s LIMIT 1", $name, $taxonomy));
+      $term_id = $wpdb->get_var($wpdb->prepare("SELECT t.term_id FROM $wpdb->terms t LEFT JOIN $wpdb->term_taxonomy tt ON t.term_id = tt.term_id WHERE t.name = %s AND tt.taxonomy = %s LIMIT 1", $name, $taxonomy)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     }
     if ($term_id) update_term_meta($term_id, 'wc1c_guid', "$taxonomy::$guid");
   }
@@ -398,8 +414,11 @@ function wc1c_unique_woocommerce_attribute_name($attribute_label) {
     $attribute_name = mb_substr($attribute_name, 0, mb_strlen($attribute_name) - 1);
   }
 
-  $sql = "SELECT * FROM {$wpdb->prefix}woocommerce_attribute_taxonomies WHERE attribute_name = %s";
-  $attribute = $wpdb->get_row($wpdb->prepare($sql, $attribute_name));
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+  $attribute = $wpdb->get_row( $wpdb->prepare(
+    "SELECT * FROM {$wpdb->prefix}woocommerce_attribute_taxonomies WHERE attribute_name = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    $attribute_name
+  ) );
   wc1c_check_wpdb_error();
   if (!$attribute) return $attribute_name;
 
@@ -408,7 +427,11 @@ function wc1c_unique_woocommerce_attribute_name($attribute_label) {
     $new_attribute_name = "$attribute_name-$number";
     $number++;
 
-    $attribute = $wpdb->get_row($wpdb->prepare($sql, $new_attribute_name));
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+    $attribute = $wpdb->get_row( $wpdb->prepare(
+      "SELECT * FROM {$wpdb->prefix}woocommerce_attribute_taxonomies WHERE attribute_name = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+      $new_attribute_name
+    ) );
     if (!$attribute) return $new_attribute_name;
   }
 }
@@ -420,14 +443,14 @@ function wc1c_replace_woocommerce_attribute($is_full, $guid, $attribute_label, $
   $attribute_id = @$guids[$guid];
 
   if ($attribute_id) {
-    $attribute_id = $wpdb->get_var($wpdb->prepare("SELECT attribute_id FROM {$wpdb->prefix}woocommerce_attribute_taxonomies WHERE attribute_id = %d", $attribute_id));
+    $attribute_id = $wpdb->get_var($wpdb->prepare("SELECT attribute_id FROM {$wpdb->prefix}woocommerce_attribute_taxonomies WHERE attribute_id = %d", $attribute_id)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     wc1c_check_wpdb_error();
   }
 
   $data = compact('attribute_label', 'attribute_type');
 
   if (WC1C_MATCH_PROPERTIES_BY_TITLE && !$attribute_id) {
-    $attribute_id = $wpdb->get_var($wpdb->prepare("SELECT attribute_id FROM {$wpdb->prefix}woocommerce_attribute_taxonomies WHERE attribute_label = %s", $attribute_label));
+    $attribute_id = $wpdb->get_var($wpdb->prepare("SELECT attribute_id FROM {$wpdb->prefix}woocommerce_attribute_taxonomies WHERE attribute_label = %s", $attribute_label)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     $guids[$guid] = $attribute_id;
     update_option('wc1c_guid_attributes', $guids);
   }
@@ -438,7 +461,7 @@ function wc1c_replace_woocommerce_attribute($is_full, $guid, $attribute_label, $
       'attribute_name' => $attribute_name,
       'attribute_orderby' => 'menu_order',
     ));
-    $wpdb->insert("{$wpdb->prefix}woocommerce_attribute_taxonomies", $data);
+    $wpdb->insert("{$wpdb->prefix}woocommerce_attribute_taxonomies", $data); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
     wc1c_check_wpdb_error();
 
     $attribute_id = $wpdb->insert_id;
@@ -452,7 +475,7 @@ function wc1c_replace_woocommerce_attribute($is_full, $guid, $attribute_label, $
     if (in_array('label', $preserve_fields)) unset($data['attribute_label']);
     if (in_array('type', $preserve_fields)) unset($data['attribute_type']);
 
-    $wpdb->update("{$wpdb->prefix}woocommerce_attribute_taxonomies", $data, compact('attribute_id'));
+    $wpdb->update("{$wpdb->prefix}woocommerce_attribute_taxonomies", $data, compact('attribute_id')); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
     wc1c_check_wpdb_error();
   }
 
@@ -959,7 +982,7 @@ function wc1c_clean_woocommerce_categories($is_full) {
 
   if (!$is_full || WC1C_PREVENT_CLEAN) return;
 
-  $term_ids = $wpdb->get_col($wpdb->prepare("SELECT tm.term_id FROM $wpdb->termmeta tm JOIN $wpdb->term_taxonomy tt ON tm.term_id = tt.term_id WHERE taxonomy = 'product_cat' AND meta_key = 'wc1c_timestamp' AND meta_value != %d", WC1C_TIMESTAMP));
+  $term_ids = $wpdb->get_col($wpdb->prepare("SELECT tm.term_id FROM $wpdb->termmeta tm JOIN $wpdb->term_taxonomy tt ON tm.term_id = tt.term_id WHERE taxonomy = 'product_cat' AND meta_key = 'wc1c_timestamp' AND meta_value != %d", WC1C_TIMESTAMP)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
   wc1c_check_wpdb_error();
 
   $term_ids = apply_filters('wc1c_clean_categories', $term_ids);
@@ -1019,7 +1042,7 @@ function wc1c_clean_woocommerce_attribute_options($is_full, $attribute_taxonomy)
 
   if (!$is_full || WC1C_PREVENT_CLEAN) return;
 
-  $term_ids = $wpdb->get_col($wpdb->prepare("SELECT tm.term_id FROM $wpdb->termmeta tm JOIN $wpdb->term_taxonomy tt ON tm.term_id = tt.term_id WHERE taxonomy = %s AND meta_key = 'wc1c_timestamp' AND meta_value != %d", $attribute_taxonomy, WC1C_TIMESTAMP));
+  $term_ids = $wpdb->get_col($wpdb->prepare("SELECT tm.term_id FROM $wpdb->termmeta tm JOIN $wpdb->term_taxonomy tt ON tm.term_id = tt.term_id WHERE taxonomy = %s AND meta_key = 'wc1c_timestamp' AND meta_value != %d", $attribute_taxonomy, WC1C_TIMESTAMP)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
   wc1c_check_wpdb_error();
 
   foreach ($term_ids as $term_id) {
@@ -1031,7 +1054,7 @@ function wc1c_clean_woocommerce_attribute_options($is_full, $attribute_taxonomy)
 function wc1c_clean_posts($post_type) {
   global $wpdb;
 
-  $post_ids = $wpdb->get_col($wpdb->prepare("SELECT post_id FROM $wpdb->postmeta JOIN $wpdb->posts ON post_id = ID WHERE post_type = %s AND meta_key = '_wc1c_timestamp' AND meta_value != %d", $post_type, WC1C_TIMESTAMP));
+  $post_ids = $wpdb->get_col($wpdb->prepare("SELECT post_id FROM $wpdb->postmeta JOIN $wpdb->posts ON post_id = ID WHERE post_type = %s AND meta_key = '_wc1c_timestamp' AND meta_value != %d", $post_type, WC1C_TIMESTAMP)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
   wc1c_check_wpdb_error();
 
   foreach ($post_ids as $post_id) {
@@ -1048,10 +1071,10 @@ function wc1c_clean_products($is_full) {
 function wc1c_clean_product_terms() {
   global $wpdb;
 
-  $wpdb->query("UPDATE $wpdb->term_taxonomy tt SET count = (SELECT COUNT(*) FROM $wpdb->term_relationships WHERE term_taxonomy_id = tt.term_taxonomy_id) WHERE taxonomy LIKE 'pa_%'");
+  $wpdb->query("UPDATE $wpdb->term_taxonomy tt SET count = (SELECT COUNT(*) FROM $wpdb->term_relationships WHERE term_taxonomy_id = tt.term_taxonomy_id) WHERE taxonomy LIKE 'pa_%'"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
   wc1c_check_wpdb_error();
 
-  $rows = $wpdb->get_results("SELECT tm.term_id, taxonomy FROM $wpdb->term_taxonomy tt LEFT JOIN $wpdb->termmeta tm ON tt.term_id = tm.term_id AND meta_key = 'wc1c_guid' WHERE meta_value IS NULL AND taxonomy LIKE 'pa_%' AND count = 0");
+  $rows = $wpdb->get_results("SELECT tm.term_id, taxonomy FROM $wpdb->term_taxonomy tt LEFT JOIN $wpdb->termmeta tm ON tt.term_id = tm.term_id AND meta_key = 'wc1c_guid' WHERE meta_value IS NULL AND taxonomy LIKE 'pa_%' AND count = 0"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
   wc1c_check_wpdb_error();
 
   foreach ($rows as $row) {

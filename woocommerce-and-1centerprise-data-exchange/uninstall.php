@@ -3,8 +3,8 @@ if (!defined('WP_UNINSTALL_PLUGIN') && !defined('WP_CLI')) exit;
 
 if (!defined('WC1C_PLUGIN_DIR')) define('WC1C_PLUGIN_DIR', __DIR__ . '/');
 if (!defined('WC1C_DATA_DIR')) {
-  $upload_dir = wp_upload_dir();
-  define('WC1C_DATA_DIR', "{$upload_dir['basedir']}/woocommerce-1c/");
+  $wc1c_upload_dir = wp_upload_dir();
+  define('WC1C_DATA_DIR', "{$wc1c_upload_dir['basedir']}/woocommerce-1c/");
 }
 
 require WC1C_PLUGIN_DIR . "exchange.php";
@@ -13,11 +13,12 @@ wc1c_disable_time_limit();
 global $wpdb;
 
 if (is_dir(WC1C_DATA_DIR)) {
-  $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(WC1C_DATA_DIR, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
-  foreach ($iterator as $path => $item) {
-    $item->isDir() ? rmdir($path) : unlink($path);
+  $wc1c_iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(WC1C_DATA_DIR, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
+  foreach ($wc1c_iterator as $wc1c_path => $wc1c_item) {
+    // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir, WordPress.WP.AlternativeFunctions.unlink_unlink
+    $wc1c_item->isDir() ? rmdir($wc1c_path) : unlink($wc1c_path);
   }
-  rmdir(WC1C_DATA_DIR);
+  rmdir(WC1C_DATA_DIR); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
 }
 
 // $term_meta_keys = $wpdb->get_col("SELECT DISTINCT meta_key FROM $wpdb->termmeta WHERE meta_key LIKE 'wc1c_%'");
@@ -37,15 +38,17 @@ if (is_dir(WC1C_DATA_DIR)) {
 //   delete_post_meta_by_key($post_meta_key);
 // }
 
-$index_table_names = array(
+$wc1c_index_table_names = array(
   $wpdb->postmeta,
   $wpdb->termmeta,
   $wpdb->usermeta,
 );
-foreach ($index_table_names as $index_table_name) {
-  $index_name = 'wc1c_meta_key_meta_value';
-  $result = $wpdb->get_var("SHOW INDEX FROM $index_table_name WHERE Key_name = '$index_name';");
-  if (!$result) continue;
+foreach ($wc1c_index_table_names as $wc1c_index_table_name) {
+  $wc1c_index_name = 'wc1c_meta_key_meta_value';
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
+  $wc1c_index_result = $wpdb->get_var( 'SHOW INDEX FROM `' . esc_sql( $wc1c_index_table_name ) . "` WHERE Key_name = '" . esc_sql( $wc1c_index_name ) . "';" );
+  if (!$wc1c_index_result) continue;
 
-  $wpdb->query("DROP INDEX $index_name ON $index_table_name");
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared
+  $wpdb->query( 'DROP INDEX `' . esc_sql( $wc1c_index_name ) . '` ON `' . esc_sql( $wc1c_index_table_name ) . '`' );
 }

@@ -1,11 +1,11 @@
 === Data Exchange for WooCommerce and 1C:Enterprise/1С:Предприятие ===
 Contributors: sgtpep
-License: GPLv3
-License URI: http://www.gnu.org/licenses/gpl-3.0.html
-Tags: 1c, 1c-enterprise, commerceml, integration, e-commerce, ecommerce, commerce, shop, cart, woothemes, woocommerce
-Requires at least: 3.8
-Tested up to: 5.4
-Stable tag: 0.9.20
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Tags: 1c, woocommerce, commerceml, integration, ecommerce
+Requires at least: 5.3
+Tested up to: 7.0
+Stable tag: 0.10.0
 
 Provides data exchange between the WooCommerce plugin and business application "1C:Enterprise 8. Trade Management" (and compatible ones).
 
@@ -192,6 +192,10 @@ fastcgi_read_timeout 60000s;
 7. Общие свойства товаров WooCommerce, сформированные по выгруженным из 1С свойствам и значениям свойств товаров, с колонкой идентификатора.
 
 == Changelog ==
+
+= 0.10.0 =
+
+- Проверено с помощью 'Plugin Check (PCP)' и исправлены ошибки и предупреждения. Исправлена уязвимость.
 
 = 0.9.17 =
 

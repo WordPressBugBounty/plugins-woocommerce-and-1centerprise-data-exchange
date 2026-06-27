@@ -80,7 +80,7 @@ function wc1c_orders_end_element_handler($is_full, $names, $depth, $name) {
     wc1c_replace_document($wc1c_document);
   }
   elseif (!$depth && $name == 'КоммерческаяИнформация') {
-    $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_%'");
+    $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_%'"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     wc1c_check_wpdb_error();
 
     do_action('wc1c_post_orders', $is_full);
@@ -246,7 +246,7 @@ function wc1c_replace_document($document) {
     }
     elseif (strpos($contragent_name, ' ') !== false) {
       list($first_name, $last_name) = explode(' ', $contragent_name, 2);
-      $result = $wpdb->get_var($wpdb->prepare("SELECT u1.user_id FROM $wpdb->usermeta u1 JOIN $wpdb->usermeta u2 ON u1.user_id = u2.user_id WHERE (u1.meta_key = 'billing_first_name' AND u1.meta_value = %s AND u2.meta_key = 'billing_last_name' AND u2.meta_value = %s) OR (u1.meta_key = 'shipping_first_name' AND u1.meta_value = %s AND u2.meta_key = 'shipping_last_name' AND u2.meta_value = %s)", $first_name, $last_name, $first_name, $last_name));
+      $result = $wpdb->get_var($wpdb->prepare("SELECT u1.user_id FROM $wpdb->usermeta u1 JOIN $wpdb->usermeta u2 ON u1.user_id = u2.user_id WHERE (u1.meta_key = 'billing_first_name' AND u1.meta_value = %s AND u2.meta_key = 'billing_last_name' AND u2.meta_value = %s) OR (u1.meta_key = 'shipping_first_name' AND u1.meta_value = %s AND u2.meta_key = 'shipping_last_name' AND u2.meta_value = %s)", $first_name, $last_name, $first_name, $last_name)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
       wc1c_check_wpdb_error();
       if ($result) $user_id = $result;
     }
@@ -264,7 +264,7 @@ function wc1c_replace_document($document) {
     $date = @$document['Дата'];
     if ($date && !empty($document['Время'])) $date .= " {$document['Время']}";
     $timestamp = strtotime($date);
-    $args['post_date'] = date("Y-m-d H:i:s", $timestamp);
+    $args['post_date'] = wp_date("Y-m-d H:i:s", $timestamp);
 
     $result = wp_update_post($args);
     wc1c_check_wp_error($result);

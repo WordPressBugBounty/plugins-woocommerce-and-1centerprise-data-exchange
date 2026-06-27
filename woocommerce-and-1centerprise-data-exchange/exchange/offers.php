@@ -112,7 +112,7 @@ function wc1c_offers_end_element_handler($is_full, $names, $depth, $name) {
     if ($wc1c_suboffers) wc1c_replace_suboffers($is_full, $wc1c_suboffers);
   }
   elseif (!$depth && $name == 'КоммерческаяИнформация') {
-    $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_%'");
+    $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_%'"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     wc1c_check_wpdb_error();
 
     do_action('wc1c_post_offers', $is_full);

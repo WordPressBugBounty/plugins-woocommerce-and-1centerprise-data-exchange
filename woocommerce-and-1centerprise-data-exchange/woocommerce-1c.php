@@ -1,12 +1,13 @@
 <?php
 /*
 Plugin Name: Data Exchange for WooCommerce and 1C:Enterprise/1С:Предприятие
-Version: 0.9.20
+Version: 0.10.0
 Description: Provides data exchange between eCommerce plugin WooCommerce and business application "1C:Enterprise 8. Trade Management".
 Author: Danil Semelenov
-Author URI: mailto:mail@danil.mobi
-Plugin URI: 
-Text Domain: woocommerce-1c
+Plugin URI: https://wordpress.org/plugins/woocommerce-and-1centerprise-data-exchange/
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: woocommerce-and-1centerprise-data-exchange
 Domain Path: /languages
 */
 
@@ -19,15 +20,16 @@ if (!defined('__DIR__')) define('__DIR__', dirname(__FILE__));
 define('WC1C_PLUGIN_DIR', __DIR__ . '/');
 define('WC1C_PLUGIN_BASENAME', plugin_basename(__FILE__));
 define('WC1C_PLUGIN_BASEDIR', dirname(WC1C_PLUGIN_BASENAME) . '/');
-$upload_dir = wp_upload_dir();
-define('WC1C_DATA_DIR', "{$upload_dir['basedir']}/woocommerce-1c/");
+$wc1c_upload_dir = wp_upload_dir();
+define('WC1C_DATA_DIR', "{$wc1c_upload_dir['basedir']}/woocommerce-1c/");
 
 function wc1c_init() {
   if (!is_plugin_active("woocommerce/woocommerce.php")) {
     function wc1c_woocommerce_admin_notices() {
       $plugin_data = get_plugin_data(__FILE__);
-      $message = sprintf(__("Plugin <strong>%s</strong> requires plugin <strong>WooCommerce</strong> to be installed and activated.", 'woocommerce-1c'), $plugin_data['Name']);
-      printf('<div class="updated"><p>%s</p></div>', $message);
+      /* translators: %s: plugin name */
+      $message = sprintf(__("Plugin <strong>%s</strong> requires plugin <strong>WooCommerce</strong> to be installed and activated.", 'woocommerce-and-1centerprise-data-exchange'), esc_html($plugin_data['Name']));
+      printf('<div class="updated"><p>%s</p></div>', wp_kses_post($message));
     }
     add_action('admin_notices', 'wc1c_woocommerce_admin_notices');
   }
@@ -37,9 +39,9 @@ add_action('init', 'wc1c_init');
 function wc1c_plugins_loaded() {
   $plugin_data = get_plugin_data(__FILE__);
   $languages_dir = WC1C_PLUGIN_BASEDIR . $plugin_data['DomainPath'];
-  load_plugin_textdomain('woocommerce-1c', false, $languages_dir);
+  load_plugin_textdomain('woocommerce-and-1centerprise-data-exchange', false, $languages_dir); // phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound
 
-  $revision = trim(str_replace('Revision', '', '$Revision: 3365857 $'), "$: ");
+  $revision = trim(str_replace('Revision', '', '$Revision: 3588067 $'), "$: ");
   define('WC1C_VERSION', sprintf("%sr%s", $plugin_data['Version'], $revision));
 }
 add_action('plugins_loaded', 'wc1c_plugins_loaded');
@@ -54,13 +56,15 @@ function wc1c_activate() {
   );
   foreach ($index_table_names as $index_table_name) {
     $index_name = 'wc1c_meta_key_meta_value';
-    $result = $wpdb->get_var("SHOW INDEX FROM $index_table_name WHERE Key_name = '$index_name';");
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
+    $result = $wpdb->get_var( 'SHOW INDEX FROM `' . esc_sql( $index_table_name ) . "` WHERE Key_name = '" . esc_sql( $index_name ) . "';" );
     if ($result) continue;
 
-    $wpdb->query("ALTER TABLE $index_table_name ADD INDEX $index_name (meta_key, meta_value(36))");
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared
+    $wpdb->query( 'ALTER TABLE `' . esc_sql( $index_table_name ) . '` ADD INDEX `' . esc_sql( $index_name ) . '` (meta_key, meta_value(36))' );
   }
 
-  if (!is_dir(WC1C_DATA_DIR)) mkdir(WC1C_DATA_DIR);
+  if (!is_dir(WC1C_DATA_DIR)) wp_mkdir_p(WC1C_DATA_DIR);
   file_put_contents(WC1C_DATA_DIR . ".htaccess", "Deny from all");
   file_put_contents(WC1C_DATA_DIR . "index.html", '');
 
@@ -81,7 +85,7 @@ function wc1c_delete_term($term_id, $tt_id, $taxonomy, $deleted_term) {
 
   if ($taxonomy != 'product_cat' && strpos($taxonomy, 'pa_') !== 0) return;
 
-  $wpdb->delete($wpdb->termmeta, array('term_id' => $term_id));
+  $wpdb->delete($wpdb->termmeta, array('term_id' => $term_id)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
   if (function_exists('wc1c_check_wpdb_error')) wc1c_check_wpdb_error();
 }
 add_action('delete_term', 'wc1c_delete_term', 10, 4);
@@ -92,7 +96,7 @@ function wc1c_woocommerce_attribute_by_id($attribute_id) {
   $cache_key = "wc1c_woocomerce_attribute_by_id-$attribute_id";
   $attribute = wp_cache_get($cache_key);
   if ($attribute === false) {
-    $attribute = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}woocommerce_attribute_taxonomies WHERE attribute_id = %d", $attribute_id), ARRAY_A);
+    $attribute = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}woocommerce_attribute_taxonomies WHERE attribute_id = %d", $attribute_id), ARRAY_A); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     if (function_exists('wc1c_check_wpdb_error')) wc1c_check_wpdb_error();
 
     if ($attribute) {
@@ -114,12 +118,12 @@ function wc1c_delete_woocommerce_attribute($attribute_id) {
 
   delete_option("{$attribute['taxonomy']}_children");
 
-  $terms = get_terms($attribute['taxonomy'], "hide_empty=0");
+  $terms = get_terms(array('taxonomy' => $attribute['taxonomy'], 'hide_empty' => 0));
   foreach ($terms as $term) {
     wp_delete_term($term->term_id, $attribute['taxonomy']);
   }
 
-  $wpdb->delete("{$wpdb->prefix}woocommerce_attribute_taxonomies", compact('attribute_id'));
+  $wpdb->delete("{$wpdb->prefix}woocommerce_attribute_taxonomies", compact('attribute_id')); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
   if (function_exists('wc1c_check_wpdb_error')) wc1c_check_wpdb_error();
 }
 

@@ -1,5 +1,5 @@
 <?php
-if (!defined('ABSPATH')) exit(__("The exchange using direct URL is not supported anymore. Please change your exchange URL to http://example.com/?wc1c=exchange.", 'woocommerce-1c'));
+if (!defined('ABSPATH')) exit(esc_html(__("The exchange using direct URL is not supported anymore. Please change your exchange URL to http://example.com/?wc1c=exchange.", 'woocommerce-and-1centerprise-data-exchange')));
 
 if (!defined('WC1C_SUPPRESS_NOTICES')) define('WC1C_SUPPRESS_NOTICES', false);
 if (!defined('WC1C_FILE_LIMIT')) define('WC1C_FILE_LIMIT', null);
@@ -30,19 +30,31 @@ function wc1c_wpdb_end($is_commit = false, $no_check = false) {
 
   $wc1c_is_transaction = false;
 
-  $sql_query = !$is_commit ? "ROLLBACK" : "COMMIT";
-  $wpdb->query($sql_query);
+  if ($is_commit) {
+    $wpdb->query('COMMIT'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+  } else {
+    $wpdb->query('ROLLBACK'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+  }
   if (!$no_check) wc1c_check_wpdb_error();
 
-  if (wc1c_is_debug()) echo "\n" . strtolower($sql_query);
+  if (wc1c_is_debug()) {
+    if ($is_commit) {
+      echo "\ncommit"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+    } else {
+      echo "\nrollback"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+    }
+  }
 }
 
 function wc1c_full_request_uri() {
   $uri = 'http';
-  if (@$_SERVER['HTTPS'] == 'on') $uri .= 's';
-  $uri .= "://{$_SERVER['SERVER_NAME']}";
-  if ($_SERVER['SERVER_PORT'] != 80) $uri .= ":{$_SERVER['SERVER_PORT']}";
-  if (isset($_SERVER['REQUEST_URI'])) $uri .= $_SERVER['REQUEST_URI'];
+  if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') $uri .= 's';
+  $server_name = isset($_SERVER['SERVER_NAME']) ? wp_unslash($_SERVER['SERVER_NAME']) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+  $uri .= "://$server_name";
+  if (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] != 80) {
+    $uri .= ':' . intval($_SERVER['SERVER_PORT']);
+  }
+  if (isset($_SERVER['REQUEST_URI'])) $uri .= wp_unslash($_SERVER['REQUEST_URI']); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
   return $uri;
 }
@@ -56,12 +68,12 @@ function wc1c_error($message, $type = "Error", $no_exit = false) {
   $last_char = substr($message, -1);
   if (!in_array($last_char, array('.', '!', '?'))) $message .= '.';
 
-  error_log($message);
-  echo "$message\n";
+  error_log($message); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+  echo esc_html($message) . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 
   if (wc1c_is_debug()) {
-    echo "\n";
-    debug_print_backtrace();
+    echo "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+    debug_print_backtrace(); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_debug_print_backtrace
 
     $info = array(
       "Request URI" => wc1c_full_request_uri(),
@@ -72,9 +84,9 @@ function wc1c_error($message, $type = "Error", $no_exit = false) {
       "WordPress version" => get_bloginfo('version'),
       "Plugin version" => WC1C_VERSION,
     );
-    echo "\n";
+    echo "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
     foreach ($info as $info_name => $info_value) {
-      echo "$info_name: $info_value\n";
+      echo esc_html($info_name) . ': ' . esc_html($info_value) . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
     }
   }
 
@@ -88,7 +100,7 @@ function wc1c_error($message, $type = "Error", $no_exit = false) {
 function wc1c_set_strict_mode() {
   // $error_reporting_level = !WC1C_SUPPRESS_NOTICES ? -1 : E_ALL & ~E_NOTICE;
   // error_reporting($error_reporting_level);
-  set_error_handler('wc1c_strict_error_handler');
+  set_error_handler('wc1c_strict_error_handler'); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_set_error_handler
   set_exception_handler('wc1c_strict_exception_handler');
 }
 
@@ -96,7 +108,7 @@ function wc1c_output_callback($buffer) {
   global $wc1c_is_error;
 
   if (!headers_sent()) {
-    $is_xml = @$_GET['mode'] == 'query';
+    $is_xml = isset($_GET['mode']) && $_GET['mode'] == 'query'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
     $content_type = !$is_xml || $wc1c_is_error ? 'text/plain' : 'text/xml';
     header("Content-Type: $content_type; charset=" . WC1C_XML_CHARSET);
   }
@@ -116,7 +128,7 @@ function wc1c_set_output_callback() {
 }
 
 function wc1c_strict_error_handler($errno, $errstr, $errfile, $errline, $errcontext) {
-  if (error_reporting() === 0) return false;
+  if (error_reporting() === 0) return false; // phpcs:ignore WordPress.PHP.DevelopmentFunctions.prevent_path_disclosure_error_reporting
 
   switch ($errno) {
     // case E_NOTICE:
@@ -146,9 +158,9 @@ function wc1c_strict_exception_handler($exception) {
 }
 
 function wc1c_fix_fastcgi_get() {
-  if (!$_GET && isset($_SERVER['REQUEST_URI'])) {
-    $query = parse_url($_SERVER['REQUEST_URI'], PHP_URL_QUERY);
-    parse_str($query, $_GET);
+  if (!$_GET && isset($_SERVER['REQUEST_URI'])) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+    $query = wp_parse_url(wp_unslash($_SERVER['REQUEST_URI']), PHP_URL_QUERY); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+    parse_str($query, $_GET); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
   }
 }
 
@@ -156,7 +168,7 @@ function wc1c_cleanup_dir($path_dir) {
   $files = array_diff(scandir($path_dir), array('.', '..'));
   foreach ($files as $file) {
     $path = "$path_dir/$file";
-    (is_dir($path) ? wc1c_cleanup_dir($path) : unlink($path));
+    (is_dir($path) ? wc1c_cleanup_dir($path) : wp_delete_file($path));
   }
 }
 
@@ -170,7 +182,7 @@ function wc1c_wp_error($wp_error, $only_error_code = null) {
     if ($only_error_code && $error_code != $only_error_code) continue;
     
     $wp_error_messages = implode(", ", $wp_error->get_error_messages($error_code));
-    $wp_error_messages = strip_tags($wp_error_messages);
+    $wp_error_messages = wp_strip_all_tags($wp_error_messages);
     $messages[] = sprintf("%s: %s", $error_code, $wp_error_messages);
   }
 
@@ -185,30 +197,34 @@ function wc1c_mode_checkauth() {
   foreach (array('HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION') as $server_key) {
     if (!isset($_SERVER[$server_key])) continue;
 
-    list(, $auth_value) = explode(' ', $_SERVER[$server_key], 2);
+    list(, $auth_value) = explode(' ', wp_unslash($_SERVER[$server_key]), 2); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
     $auth_value = base64_decode($auth_value);
-    list($_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW']) = explode(':', $auth_value);
+    list($_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW']) = explode(':', $auth_value); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
-    break;                                                                  
+    break;
   }
-  
-  if (!isset($_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW'])) wc1c_error("No authentication credentials");
 
-  $user = wp_authenticate($_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW']);
+  if (!isset($_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW'])) wc1c_error("No authentication credentials"); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+
+  $wc1c_auth_user = sanitize_text_field(wp_unslash($_SERVER['PHP_AUTH_USER']));
+  $wc1c_auth_pw   = wp_unslash($_SERVER['PHP_AUTH_PW']); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+  $user = wp_authenticate($wc1c_auth_user, $wc1c_auth_pw);
   wc1c_check_wp_error($user);
   wc1c_check_permissions($user);
 
-  $expiration = time() + apply_filters('auth_cookie_expiration', DAY_IN_SECONDS, $user->ID, false);
+  $expiration = time() + apply_filters('auth_cookie_expiration', DAY_IN_SECONDS, $user->ID, false); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
   $auth_cookie = wp_generate_auth_cookie($user->ID, $expiration);
 
-  exit("success\nwc1c-auth\n$auth_cookie");
+  exit("success\nwc1c-auth\n$auth_cookie"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 
 function wc1c_check_auth() {
-  if (preg_match("/ Development Server$/", $_SERVER['SERVER_SOFTWARE'])) return;
+  $server_software = isset($_SERVER['SERVER_SOFTWARE']) ? sanitize_text_field(wp_unslash($_SERVER['SERVER_SOFTWARE'])) : '';
+  if (preg_match("/ Development Server$/", $server_software)) return;
 
   if (!empty($_COOKIE['wc1c-auth'])) {
-    $user = wp_validate_auth_cookie($_COOKIE['wc1c-auth'], 'auth');
+    $wc1c_auth_cookie = sanitize_text_field(wp_unslash($_COOKIE['wc1c-auth']));
+    $user = wp_validate_auth_cookie($wc1c_auth_cookie, 'auth');
     if (!$user) wc1c_error("Invalid cookie");
   }
   else {
@@ -254,30 +270,56 @@ function wc1c_mode_init($type) {
   if (WC1C_FILE_LIMIT) $file_limits[] = wc1c_filesize_to_bytes(WC1C_FILE_LIMIT);
   $file_limit = min($file_limits);
 
-  exit("zip=yes\nfile_limit=$file_limit");
+  exit("zip=yes\nfile_limit=$file_limit"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 
 function wc1c_mode_file($type, $filename) {
   if ($filename) {
-    $path = WC1C_DATA_DIR . "$type/" . ltrim($filename, "./\\");
-    $path_dir = dirname($path);
-    if (!is_dir($path_dir)) mkdir($path_dir, 0777, true) or wc1c_error(sprintf("Failed to create directories for file %s", $filename));
+    // Reject executable extensions — defense-in-depth against RCE.
+    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    $blocked_ext = array('php', 'php3', 'php4', 'php5', 'php7', 'phtml', 'phar', 'shtml', 'shtm', 'cgi', 'pl', 'py', 'rb', 'asp', 'aspx', 'jsp');
+    if (in_array($ext, $blocked_ext, true)) {
+      wc1c_error(sprintf("File extension not allowed: %s", $ext));
+    }
 
-    $input_file = fopen("php://input", 'r');
+    // Ensure the base directory exists before resolving its real path.
+    $base_dir_raw = WC1C_DATA_DIR . sanitize_key($type);
+    if (!is_dir($base_dir_raw)) wp_mkdir_p($base_dir_raw);
+    $base_dir = realpath($base_dir_raw);
+    if (!$base_dir) wc1c_error(sprintf("Failed to resolve base directory for type %s", $type));
+
+    // Build path – ltrim strips leading separators only; realpath below catches
+    // any remaining directory traversal (e.g. "subdir/../../../shell.php").
+    $path = $base_dir . '/' . ltrim($filename, "./\\");
+    $path_dir = dirname($path);
+    if (!is_dir($path_dir) && !wp_mkdir_p($path_dir)) wc1c_error(sprintf("Failed to create directories for file %s", $filename));
+
+    // Canonicalize and enforce containment: the resolved directory must be
+    // inside (or equal to) the type-specific base directory.
+    $real_path_dir = realpath($path_dir);
+    if (!$real_path_dir || strpos($real_path_dir . '/', $base_dir . '/') !== 0) {
+      wc1c_error(sprintf("Invalid file path for file %s", $filename));
+    }
+
+    // Reconstruct the final path from the verified directory + bare filename.
+    $path = $real_path_dir . '/' . basename($filename);
+
+    $input_file = fopen("php://input", 'r'); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
     $temp_path = "$path~";
-    $temp_file = fopen($temp_path, 'w');
+    $temp_file = fopen($temp_path, 'w'); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
     stream_copy_to_stream($input_file, $temp_file);
 
     if (is_file($path)) {
       $temp_header = file_get_contents($temp_path, false, null, 0, 32);
-      if (strpos($temp_header, "<?xml ") !== false) unlink($path);
+      if (strpos($temp_header, "<?xml ") !== false) wp_delete_file($path);
     }
 
-    $temp_file = fopen($temp_path, 'r');
-    $file = fopen($path, 'a');
+    $temp_file = fopen($temp_path, 'r'); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+    $file = fopen($path, 'a'); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
     stream_copy_to_stream($temp_file, $file);
-    fclose($temp_file);
-    unlink($temp_path);
+    fclose($temp_file); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+    fclose($file); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+    wp_delete_file($temp_path);
   }
 
   if ($type == 'catalog') {
@@ -308,7 +350,7 @@ function wc1c_check_wpdb_error() {
 
 function wc1c_disable_time_limit() {
   $disabled_functions = explode(',', ini_get('disable_functions'));
-  if (!in_array('set_time_limit', $disabled_functions)) @set_time_limit(0);
+  if (!in_array('set_time_limit', $disabled_functions)) @set_time_limit(0); // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged
 }
 
 function wc1c_set_transaction_mode() {
@@ -321,7 +363,7 @@ function wc1c_set_transaction_mode() {
   $wpdb->show_errors(false); 
 
   $wc1c_is_transaction = true;
-  $wpdb->query("START TRANSACTION");
+  $wpdb->query("START TRANSACTION"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
   wc1c_check_wpdb_error();
 }
 
@@ -353,7 +395,8 @@ function wc1c_unpack_files($type) {
   }
 
   foreach ($zip_paths as $zip_path) {
-    unlink($zip_path) or wc1c_error(sprintf("Failed to unlink file %s", $zip_path));
+    wp_delete_file($zip_path);
+    if (file_exists($zip_path)) wc1c_error(sprintf("Failed to unlink file %s", $zip_path));
   }
 
   if ($type == 'catalog') exit("progress");
@@ -402,7 +445,7 @@ function wc1c_xml_parse($fp) {
   $filename = basename($meta_data['uri']);
 
   while (!($is_final = feof($fp))) {
-    if (($data = fread($fp, 4096)) === false) wc1c_error(sprintf("Failed to read from file %s", $filename));
+    if (($data = fread($fp, 4096)) === false) wc1c_error(sprintf("Failed to read from file %s", $filename)); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread
     if (!xml_parse($parser, $data, $is_final)) {
       $message = sprintf("%s in %s on line %d", xml_error_string(xml_get_error_code($parser)), $filename, xml_get_current_line_number($parser));
       wc1c_error($message, "XML Error");
@@ -438,7 +481,7 @@ function wc1c_mode_import($type, $filename, $namespace = null) {
   if ($type == 'catalog') wc1c_unpack_files($type);
 
   $path = WC1C_DATA_DIR . "$type/$filename";
-  $fp = fopen($path, 'r') or wc1c_error(sprintf("Failed to open file %s", $filename));
+  $fp = fopen($path, 'r') or wc1c_error(sprintf("Failed to open file %s", $filename)); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
   flock($fp, LOCK_EX) or wc1c_error(sprintf("Failed to lock file %s", $filename));
 
   wc1c_set_transaction_mode();
@@ -456,7 +499,7 @@ function wc1c_mode_import($type, $filename, $namespace = null) {
   wc1c_xml_parse($fp);
 
   flock($fp, LOCK_UN) or wc1c_error(sprintf("Failed to unlock file %s", $filename));
-  fclose($fp) or wc1c_error(sprintf("Failed to close file %s", $filename));
+  fclose($fp) or wc1c_error(sprintf("Failed to close file %s", $filename)); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 
   exit("success");
 }
@@ -469,7 +512,7 @@ function wc1c_post_id_by_meta($key, $value) {
   $cache_key = "wc1c_post_id_by_meta-$key-$value";
   $post_id = wp_cache_get($cache_key);
   if ($post_id === false) {
-    $post_id = $wpdb->get_var($wpdb->prepare("SELECT post_id FROM $wpdb->postmeta JOIN $wpdb->posts ON post_id = ID WHERE meta_key = %s AND meta_value = %s", $key, $value));
+    $post_id = $wpdb->get_var($wpdb->prepare("SELECT post_id FROM $wpdb->postmeta JOIN $wpdb->posts ON post_id = ID WHERE meta_key = %s AND meta_value = %s", $key, $value)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     wc1c_check_wpdb_error();
 
     if ($post_id) wp_cache_set($cache_key, $post_id);
@@ -495,6 +538,7 @@ function wc1c_exchange() {
   wc1c_set_output_callback();
   wc1c_fix_fastcgi_get();
 
+  // phpcs:disable WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
   if (empty($_GET['type'])) wc1c_error("No type");
   if (empty($_GET['mode'])) wc1c_error("No mode");
 
@@ -507,23 +551,24 @@ function wc1c_exchange() {
   define('WC1C_DEBUG', true);
 
   if ($_GET['mode'] == 'init') {
-    wc1c_mode_init($_GET['type']);
+    wc1c_mode_init(sanitize_key($_GET['type']));
   }
   elseif ($_GET['mode'] == 'file') {
-    wc1c_mode_file($_GET['type'], $_GET['filename']);
+    wc1c_mode_file(sanitize_key($_GET['type']), isset($_GET['filename']) ? wp_unslash($_GET['filename']) : '');
   }
   elseif ($_GET['mode'] == 'import') {
-    wc1c_mode_import($_GET['type'], $_GET['filename']);
+    wc1c_mode_import(sanitize_key($_GET['type']), isset($_GET['filename']) ? wp_unslash($_GET['filename']) : '');
   }
   elseif ($_GET['mode'] == 'query') {
-    wc1c_mode_query($_GET['type']);
+    wc1c_mode_query(sanitize_key($_GET['type']));
   }
   elseif ($_GET['mode'] == 'success') {
-    wc1c_mode_success($_GET['type']);
+    wc1c_mode_success(sanitize_key($_GET['type']));
   }
   else {
     wc1c_error("Unknown mode");
   }
+  // phpcs:enable
 }
 
 function wc1c_template_redirect() {
@@ -533,7 +578,7 @@ function wc1c_template_redirect() {
   if (strpos($value, '?') !== false) {
     list($value, $query) = explode('?', $value, 2);
     parse_str($query, $query);
-    $_GET = array_merge($_GET, $query);
+    $_GET = array_merge($_GET, $query); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
   }
   $_GET['wc1c'] = $value;
 

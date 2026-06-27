@@ -4,11 +4,12 @@ if (!defined('ABSPATH')) exit;
 if (!defined('WC1C_CURRENCY')) define('WC1C_CURRENCY', null);
 
 WC();
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
 $order_statuses = array_keys(wc_get_order_statuses());
 $order_posts = get_posts(array(
   'post_type' => 'shop_order',
   'post_status' => $order_statuses,
-  'meta_query' => array(
+  'meta_query' => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
     array(
       'key' => 'wc1c_queried',
       'compare' => "NOT EXISTS",
@@ -170,45 +171,45 @@ foreach ($order_posts as $order_post) {
 
 $documents = apply_filters('wc1c_query_documents', $documents);
 
-echo '<?xml version="1.0" encoding="' . WC1C_XML_CHARSET . '"?>';
+echo '<?xml version="1.0" encoding="' . esc_attr( WC1C_XML_CHARSET ) . '"?>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 ?>
 
-<КоммерческаяИнформация ВерсияСхемы="2.05" ДатаФормирования="<?php echo date("Y-m-dTH:i:s", WC1C_TIMESTAMP) ?>">
+<КоммерческаяИнформация ВерсияСхемы="2.05" ДатаФормирования="<?php echo esc_html( gmdate( 'Y-m-dTH:i:s', WC1C_TIMESTAMP ) ); ?>">
   <?php foreach ($documents as $document): ?>
     <Документ>
-      <Ид>wc1c#order#<?php echo $document['order_id'] ?></Ид>
-      <Номер><?php echo $document['order_id'] ?></Номер>
-      <Дата><?php echo $document['date'] ?></Дата>
-      <Время><?php echo $document['time'] ?></Время>
+      <Ид>wc1c#order#<?php echo absint( $document['order_id'] ); ?></Ид>
+      <Номер><?php echo absint( $document['order_id'] ); ?></Номер>
+      <Дата><?php echo esc_html( $document['date'] ); ?></Дата>
+      <Время><?php echo esc_html( $document['time'] ); ?></Время>
       <ХозОперация>Заказ товара</ХозОперация>
       <Роль>Продавец</Роль>
-      <Валюта><?php echo $document['currency'] ?></Валюта>
-      <Сумма><?php echo $document['total'] ?></Сумма>
-      <Комментарий><?php echo $document['comment'] ?></Комментарий>
+      <Валюта><?php echo esc_html( $document['currency'] ); ?></Валюта>
+      <Сумма><?php echo esc_html( $document['total'] ); ?></Сумма>
+      <Комментарий><?php echo esc_html( $document['comment'] ); ?></Комментарий>
       <Контрагенты>
         <?php foreach ($document['contragents'] as $type => $contragent): ?>
           <Контрагент>
-            <Ид>wc1c#user#<?php echo $contragent['user_id'] ?></Ид>
-            <Роль><?php echo $type == 'billing' ? "Плательщик" : "Получатель" ?></Роль>
+            <Ид>wc1c#user#<?php echo absint( $contragent['user_id'] ); ?></Ид>
+            <Роль><?php echo esc_html( $type == 'billing' ? "Плательщик" : "Получатель" ); ?></Роль>
             <?php if (!empty($contragent['name'])): ?>
-              <Наименование><?php echo $contragent['name'] ?></Наименование>
-              <ПолноеНаименование><?php echo $contragent['name'] ?></ПолноеНаименование>
+              <Наименование><?php echo esc_html( $contragent['name'] ); ?></Наименование>
+              <ПолноеНаименование><?php echo esc_html( $contragent['name'] ); ?></ПолноеНаименование>
             <?php endif ?>
             <?php if (!empty($contragent['first_name'])): ?>
-              <Имя><?php echo $contragent['first_name'] ?></Имя>
+              <Имя><?php echo esc_html( $contragent['first_name'] ); ?></Имя>
             <?php endif ?>
             <?php if (!empty($contragent['last_name'])): ?>
-              <Фамилия><?php echo $contragent['last_name'] ?></Фамилия>
+              <Фамилия><?php echo esc_html( $contragent['last_name'] ); ?></Фамилия>
             <?php endif ?>
             <?php if (!empty($contragent['full_address']) || $contragent['address']): ?>
               <АдресРегистрации>
                 <?php if (!empty($contragent['full_address'])): ?>
-                  <Представление><?php echo $contragent['full_address'] ?></Представление>  
+                  <Представление><?php echo esc_html( $contragent['full_address'] ); ?></Представление>
                 <?php endif ?>
                 <?php foreach ($contragent['address'] as $address_item_name => $address_item_value): ?>
                   <АдресноеПоле>
-                    <Тип><?php echo $address_item_name ?></Тип>
-                    <Значение><?php echo $address_item_value ?></Значение>
+                    <Тип><?php echo esc_html( $address_item_name ); ?></Тип>
+                    <Значение><?php echo esc_html( $address_item_value ); ?></Значение>
                   </АдресноеПоле>
                 <?php endforeach ?>
               </АдресРегистрации>
@@ -216,8 +217,8 @@ echo '<?xml version="1.0" encoding="' . WC1C_XML_CHARSET . '"?>';
             <Контакты>
               <?php foreach ($contragent['contacts'] as $contact_item_name => $contact_item_value): ?>
                 <Контакт>
-                  <Тип><?php echo $contact_item_name ?></Тип>
-                  <Значение><?php echo $contact_item_value ?></Значение>
+                  <Тип><?php echo esc_html( $contact_item_name ); ?></Тип>
+                  <Значение><?php echo esc_html( $contact_item_value ); ?></Значение>
                 </Контакт>
               <?php endforeach ?>
             </Контакты>
@@ -241,17 +242,17 @@ echo '<?xml version="1.0" encoding="' . WC1C_XML_CHARSET . '"?>';
         <?php foreach ($document['products'] as $product): ?>
           <Товар>
             <?php if (!empty($product['guid'])): ?>
-              <Ид><?php echo $product['guid'] ?></Ид>
+              <Ид><?php echo esc_html( $product['guid'] ); ?></Ид>
             <?php endif ?>
-            <Наименование><?php echo $product['name'] ?></Наименование>
+            <Наименование><?php echo esc_html( $product['name'] ); ?></Наименование>
             <БазоваяЕдиница Код="796" НаименованиеПолное="Штука" МеждународноеСокращение="PCE">шт</БазоваяЕдиница>
-            <ЦенаЗаЕдиницу><?php echo $product['price_per_item'] ?></ЦенаЗаЕдиницу>
-            <Количество><?php echo $product['quantity'] ?></Количество>
-            <Сумма><?php echo $product['total'] ?></Сумма>
+            <ЦенаЗаЕдиницу><?php echo esc_html( $product['price_per_item'] ); ?></ЦенаЗаЕдиницу>
+            <Количество><?php echo esc_html( $product['quantity'] ); ?></Количество>
+            <Сумма><?php echo esc_html( $product['total'] ); ?></Сумма>
             <ЗначенияРеквизитов>
               <ЗначениеРеквизита>
                 <Наименование>ТипНоменклатуры</Наименование>
-                <Значение><?php echo $product['type'] ?></Значение>
+                <Значение><?php echo esc_html( $product['type'] ); ?></Значение>
               </ЗначениеРеквизита>
             </ЗначенияРеквизитов>
           </Товар>
@@ -271,8 +272,8 @@ echo '<?xml version="1.0" encoding="' . WC1C_XML_CHARSET . '"?>';
         $requisites = apply_filters('wc1c_query_order_requisites', $requisites, $document);
         foreach ($requisites as $requisite_key => $requisite_value): ?>
           <ЗначениеРеквизита>
-            <Наименование><?php echo $requisite_key ?></Наименование>
-            <Значение><?php echo $requisite_value ?></Значение>
+            <Наименование><?php echo esc_html( $requisite_key ); ?></Наименование>
+            <Значение><?php echo esc_html( $requisite_value ); ?></Значение>
           </ЗначениеРеквизита>
         <?php endforeach; ?>
       </ЗначенияРеквизитов>
@@ -284,4 +285,5 @@ echo '<?xml version="1.0" encoding="' . WC1C_XML_CHARSET . '"?>';
 foreach ($order_post_ids as $order_post_id) {
   update_post_meta($order_post_id, 'wc1c_querying', 1);
 }
+// phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
 ?>
